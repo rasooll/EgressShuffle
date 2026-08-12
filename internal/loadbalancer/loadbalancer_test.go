@@ -57,19 +57,21 @@ func TestNoHealthyBackends(t *testing.T) {
 }
 
 func TestConcurrentRoundRobinSelection(t *testing.T) {
-	r := &RoundRobin{}
 	items := []*backend.Backend{healthy("a:9050"), healthy("b:9050")}
-	var wg sync.WaitGroup
-	for range 100 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if _, err := r.Select(items); err != nil {
-				t.Errorf("Select() error = %v", err)
-			}
-		}()
+	balancers := []LoadBalancer{&RoundRobin{}, &Random{source: randSource()}, LeastConnections{}}
+	for _, balancer := range balancers {
+		var wg sync.WaitGroup
+		for range 100 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if _, err := balancer.Select(items); err != nil {
+					t.Errorf("Select() error = %v", err)
+				}
+			}()
+		}
+		wg.Wait()
 	}
-	wg.Wait()
 }
 
 func randSource() *rand.Rand {
