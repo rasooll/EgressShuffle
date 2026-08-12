@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/rasooll/egressshuffle/internal/backend"
 )
@@ -21,7 +22,7 @@ func New(strategy string) (LoadBalancer, error) {
 	case "round_robin":
 		return &RoundRobin{}, nil
 	case "random":
-		return &Random{source: rand.New(rand.NewSource(1))}, nil
+		return &Random{source: rand.New(rand.NewSource(time.Now().UnixNano()))}, nil
 	case "least_connections":
 		return LeastConnections{}, nil
 	default:
