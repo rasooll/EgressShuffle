@@ -4,6 +4,7 @@
 
 bin/
 dist/
+/egressshuffle
 coverage.out
 coverage.html
 

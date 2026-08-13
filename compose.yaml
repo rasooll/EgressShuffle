@@ -1,0 +1,106 @@
+name: egressshuffle
+
+services:
+  egressshuffle:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    environment:
+      PROXY_ADDRESS: ${PROXY_ADDRESS:-0.0.0.0:8080}
+      ADMIN_ADDRESS: ${ADMIN_ADDRESS:-0.0.0.0:9090}
+      TOR_SERVICE_NAME: ${TOR_SERVICE_NAME:-tor}
+      TOR_SOCKS_PORT: ${TOR_SOCKS_PORT:-9050}
+      DISCOVERY_INTERVAL: ${DISCOVERY_INTERVAL:-10s}
+      LOAD_BALANCER: ${LOAD_BALANCER:-round_robin}
+      CONNECT_TIMEOUT: ${CONNECT_TIMEOUT:-15s}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-60s}
+      IDLE_TIMEOUT: ${IDLE_TIMEOUT:-90s}
+      HEADER_TIMEOUT: ${HEADER_TIMEOUT:-10s}
+      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-15s}
+      BACKEND_HEALTH_INTERVAL: ${BACKEND_HEALTH_INTERVAL:-10s}
+      BACKEND_HEALTH_TIMEOUT: ${BACKEND_HEALTH_TIMEOUT:-5s}
+      BACKEND_FAILURE_THRESHOLD: ${BACKEND_FAILURE_THRESHOLD:-3}
+      BACKEND_SUCCESS_THRESHOLD: ${BACKEND_SUCCESS_THRESHOLD:-2}
+      MAX_BACKEND_RETRIES: ${MAX_BACKEND_RETRIES:-2}
+      TOR_E2E_HEALTHCHECK_ENABLED: ${TOR_E2E_HEALTHCHECK_ENABLED:-false}
+      TOR_E2E_HEALTHCHECK_URL: ${TOR_E2E_HEALTHCHECK_URL:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      PROXY_AUTH_ENABLED: ${PROXY_AUTH_ENABLED:-false}
+      PROXY_AUTH_USERNAME: ${PROXY_AUTH_USERNAME:-}
+      PROXY_AUTH_PASSWORD: ${PROXY_AUTH_PASSWORD:-}
+    ports:
+      - "${PROXY_BIND:-127.0.0.1:8080}:8080"
+      - "${ADMIN_BIND:-127.0.0.1:9090}:9090"
+    networks:
+      - tor_internal
+      - client_ingress
+    depends_on:
+      tor:
+        condition: service_started
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    stop_grace_period: 20s
+    healthcheck:
+      test: ["CMD", "/egressshuffle", "--healthcheck"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+  tor:
+    build:
+      context: deploy/tor
+    expose:
+      - "9050"
+    networks:
+      - tor_internal
+      - tor_egress
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ulimits:
+      nofile:
+        soft: 8192
+        hard: 8192
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles:
+      - observability
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${PROMETHEUS_BIND:-127.0.0.1:9091}:9090"
+    networks:
+      - tor_internal
+      - client_ingress
+    read_only: true
+    tmpfs:
+      - /prometheus:rw,noexec,nosuid,nodev,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  tor_internal:
+    internal: true
+  client_ingress: {}
+  tor_egress: {}

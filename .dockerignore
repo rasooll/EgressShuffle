@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+docs
+bin
+dist
+coverage*
+tmp
+*.log
+.DS_Store
+.idea
+.vscode
+Project-Prompt.md
