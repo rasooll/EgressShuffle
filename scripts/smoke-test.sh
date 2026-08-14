@@ -19,7 +19,7 @@ printf '\n'
 
 curl --fail --silent --show-error "${admin_url}/healthz" >/dev/null
 curl --fail --silent --show-error "${admin_url}/metrics" | grep -q '^egressshuffle_backend_count '
-curl --fail --silent --show-error --proxy "${proxy_url}" http://example.com/ >/dev/null
-curl --fail --silent --show-error --proxy "${proxy_url}" https://example.com/ >/dev/null
+curl --fail --silent --show-error --noproxy "" --proxy "${proxy_url}" http://example.com/ >/dev/null
+curl --fail --silent --show-error --noproxy "" --proxy "${proxy_url}" https://example.com/ >/dev/null
 
 printf 'Smoke test passed\n'

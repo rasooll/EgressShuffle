@@ -5,6 +5,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY torrc /etc/tor/torrc
+RUN tor --verify-config -f /etc/tor/torrc
 
 USER debian-tor
 EXPOSE 9050

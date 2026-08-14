@@ -28,7 +28,7 @@ jobs:
         run: go vet ./...
       - name: Build
         run: go build ./cmd/egressshuffle
-      - name: Build image
-        run: docker build .
+      - name: Build Compose images
+        run: docker compose build
       - name: Validate Compose
         run: docker compose config

@@ -47,7 +47,13 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
-    stop_grace_period: 20s
+    stop_grace_period: ${STOP_GRACE_PERIOD:-20s}
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "/egressshuffle", "--healthcheck"]
       interval: 10s
@@ -76,6 +82,12 @@ services:
       nofile:
         soft: 8192
         hard: 8192
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   prometheus:
     image: prom/prometheus:v3.5.0
@@ -89,18 +101,27 @@ services:
     ports:
       - "${PROMETHEUS_BIND:-127.0.0.1:9091}:9090"
     networks:
-      - tor_internal
       - client_ingress
     read_only: true
     tmpfs:
-      - /prometheus:rw,noexec,nosuid,nodev,size=128m
+      - /prometheus:rw,noexec,nosuid,nodev,size=128m,uid=65534,gid=65534,mode=0750
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
+    restart: unless-stopped
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   tor_internal:
     internal: true
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
   client_ingress: {}
   tor_egress: {}

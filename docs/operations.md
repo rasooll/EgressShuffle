@@ -27,8 +27,8 @@ docker compose down
 
 `SIGTERM` stops discovery and health workers, stops accepting requests, waits
 for ordinary requests and hijacked tunnels, and force-closes remaining
-connections at `SHUTDOWN_TIMEOUT`. Compose's router `stop_grace_period` is
-slightly longer than the default application deadline.
+connections at `SHUTDOWN_TIMEOUT`. Keep Compose's `STOP_GRACE_PERIOD` longer
+than the application deadline so Docker does not send `SIGKILL` first.
 
 ## Scaling Tor
 
@@ -42,6 +42,10 @@ Do not restart EgressShuffle during scaling. Backend membership converges after
 approximately one `DISCOVERY_INTERVAL`. New entries require subsequent health
 successes; removed entries disappear at reconciliation. A temporary DNS error
 retains previous membership until a later successful lookup.
+
+Scale-down stops removed Tor containers immediately. Existing requests or
+tunnels using those replicas can be interrupted; reduce gradually and inspect
+active-connection metrics before removing capacity.
 
 Observe convergence with:
 

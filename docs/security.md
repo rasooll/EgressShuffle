@@ -26,6 +26,10 @@ is required for host port publication and gives the container ordinary network
 reachability at the Docker layer; application destination dials are nonetheless
 implemented exclusively through SOCKS5.
 
+The internal network uses a dedicated subnet, and Tor's `SocksPolicy` accepts
+only that subnet. SOCKS requests arriving through Tor's separate egress
+interface are rejected.
+
 ## Authentication and Plaintext Risk
 
 Optional HTTP Basic proxy authentication uses constant-time comparison of

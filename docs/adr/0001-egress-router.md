@@ -53,7 +53,7 @@ replicas also avoid shared Tor data and ambiguous failure domains.
 
 Rejected because `tor1`, `tor2`, and similar definitions make scale a static
 configuration operation and require router changes or restart. A single
-scalable service allows `docker compose --scale tor=N` and periodic DNS
+scalable service allows `docker compose up -d --scale tor=N` and periodic DNS
 reconciliation.
 
 ## Consequences

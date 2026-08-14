@@ -66,7 +66,7 @@ failure, and shutdown flows.
 Requirements: Docker Engine with Docker Compose v2.
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/rasooll/egressshuffle.git
 cd egressshuffle
 docker compose up --build --scale tor=3
 ```
@@ -143,7 +143,10 @@ listener starts. Docker Compose has usable defaults and does not require an
 
 Compose-only host bindings are `PROXY_BIND=127.0.0.1:8080`,
 `ADMIN_BIND=127.0.0.1:9090`, and
-`PROMETHEUS_BIND=127.0.0.1:9091`.
+`PROMETHEUS_BIND=127.0.0.1:9091`. `STOP_GRACE_PERIOD` must remain longer than
+`SHUTDOWN_TIMEOUT`. The listener addresses, Tor service name, and SOCKS port
+should retain their supplied values with the bundled Compose topology; changing
+them also requires matching port, network, Tor, and Prometheus changes.
 
 ## Scaling
 
@@ -259,6 +262,10 @@ make run
 make check
 make docker-build
 ```
+
+`make run` starts the binary directly and therefore requires
+`TOR_SERVICE_NAME` and `TOR_SOCKS_PORT` to identify a Tor service reachable
+from the host.
 
 `make check` verifies formatting, runs normal and race-enabled tests, vets the
 code, and builds the binary with metadata.
