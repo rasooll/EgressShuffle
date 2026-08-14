@@ -255,6 +255,8 @@ curl http://127.0.0.1:9090/metrics
 ## Development
 
 Requirements: Go 1.24 or newer, Docker, Docker Compose v2, Make, and Bash.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the contribution workflow,
+engineering standards, and security reporting guidance.
 
 ```bash
 make build
