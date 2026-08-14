@@ -113,6 +113,9 @@ func readConnectResponse(conn net.Conn) error {
 	if header[1] != 0x00 {
 		return fmt.Errorf("SOCKS5 connect rejected: %s", socksReply(header[1]))
 	}
+	if header[2] != 0x00 {
+		return fmt.Errorf("SOCKS5 backend returned nonzero reserved byte")
+	}
 
 	addressLength := 0
 	switch header[3] {

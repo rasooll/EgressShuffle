@@ -40,7 +40,11 @@ func (r *RoundRobin) Select(items []*backend.Backend) (*backend.Backend, error) 
 		return nil, ErrNoHealthyBackends
 	}
 	target := int((r.next.Add(1) - 1) % uint64(count))
-	return nthHealthy(items, target), nil
+	selected := nthHealthy(items, target)
+	if selected == nil {
+		return nil, ErrNoHealthyBackends
+	}
+	return selected, nil
 }
 
 type Random struct {
@@ -56,7 +60,11 @@ func (r *Random) Select(items []*backend.Backend) (*backend.Backend, error) {
 	r.mu.Lock()
 	target := r.source.Intn(count)
 	r.mu.Unlock()
-	return nthHealthy(items, target), nil
+	selected := nthHealthy(items, target)
+	if selected == nil {
+		return nil, ErrNoHealthyBackends
+	}
+	return selected, nil
 }
 
 type LeastConnections struct{}

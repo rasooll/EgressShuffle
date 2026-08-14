@@ -74,6 +74,32 @@ func TestConcurrentRoundRobinSelection(t *testing.T) {
 	}
 }
 
+func TestSelectionDuringHealthTransitions(t *testing.T) {
+	a, b := healthy("a:9050"), healthy("b:9050")
+	items := []*backend.Backend{a, b}
+	balancers := []LoadBalancer{&RoundRobin{}, &Random{source: randSource()}}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for range 2_000 {
+			a.ObserveHealth(false, 1, 1, time.Now())
+			b.ObserveHealth(false, 1, 1, time.Now())
+			a.ObserveHealth(true, 1, 1, time.Now())
+			b.ObserveHealth(true, 1, 1, time.Now())
+		}
+	}()
+	for _, balancer := range balancers {
+		for range 2_000 {
+			selected, err := balancer.Select(items)
+			if err == nil && selected == nil {
+				t.Fatal("Select() returned a nil backend without an error")
+			}
+		}
+	}
+	wg.Wait()
+}
+
 func randSource() *rand.Rand {
 	return rand.New(rand.NewSource(1))
 }

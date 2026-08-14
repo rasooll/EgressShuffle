@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -21,6 +22,17 @@ func TestRemoveHopHeaders(t *testing.T) {
 	}
 	if header.Get("X-End-To-End") != "preserve" {
 		t.Fatal("end-to-end header was removed")
+	}
+}
+
+func TestHTTPUpgradeIsRejected(t *testing.T) {
+	handler := &Handler{}
+	request := httptest.NewRequest(http.MethodGet, "http://example.test/socket", nil)
+	request.Header.Set("Connection", "Upgrade")
+	request.Header.Set("Upgrade", "websocket")
+	response := httptest.NewRecorder()
+	if status := handler.handleHTTP(response, request); status != http.StatusNotImplemented {
+		t.Fatalf("handleHTTP() status = %d, want 501", status)
 	}
 }
 

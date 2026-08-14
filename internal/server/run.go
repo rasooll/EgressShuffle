@@ -59,6 +59,7 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger, build Buil
 
 	proxyServer := &http.Server{
 		Addr: cfg.ProxyAddress, Handler: proxy, ReadHeaderTimeout: cfg.HeaderTimeout,
+		ReadTimeout: cfg.RequestTimeout, WriteTimeout: cfg.RequestTimeout,
 		IdleTimeout: cfg.IdleTimeout, MaxHeaderBytes: 1 << 20,
 	}
 	adminServer := &http.Server{
@@ -108,6 +109,10 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger, build Buil
 		}()
 	}
 	wg.Wait()
+	// Shutdown cannot force-close ordinary HTTP connections after its context
+	// expires. Close is harmless after graceful completion and bounds all I/O.
+	_ = proxyServer.Close()
+	_ = adminServer.Close()
 	logger.Info("EgressShuffle stopped")
 	return runErr
 }

@@ -48,5 +48,8 @@ func (c E2EChecker) Check(ctx context.Context, backendAddress string) error {
 		return fmt.Errorf("end-to-end Tor health request: %w", err)
 	}
 	_ = response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("end-to-end Tor health request returned status %d", response.StatusCode)
+	}
 	return nil
 }

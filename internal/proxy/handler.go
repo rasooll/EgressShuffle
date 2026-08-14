@@ -80,6 +80,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleHTTP(w http.ResponseWriter, r *http.Request) int {
+	if isUpgradeRequest(r.Header) {
+		http.Error(w, "HTTP protocol upgrades are not supported", http.StatusNotImplemented)
+		return http.StatusNotImplemented
+	}
 	if r.URL.Scheme != "http" || r.URL.Host == "" {
 		http.Error(w, "only absolute HTTP URLs are supported", http.StatusBadRequest)
 		return http.StatusBadRequest
@@ -98,7 +102,7 @@ func (h *Handler) handleHTTP(w http.ResponseWriter, r *http.Request) int {
 
 	transport := &http.Transport{
 		Proxy:                 nil,
-		DisableCompression:    false,
+		DisableCompression:    true,
 		DisableKeepAlives:     true,
 		ForceAttemptHTTP2:     false,
 		ResponseHeaderTimeout: h.RequestTimeout,
@@ -146,6 +150,11 @@ func (h *Handler) handleConnect(w http.ResponseWriter, r *http.Request) int {
 	}
 	client, buffered, err := hijacker.Hijack()
 	if err != nil {
+		_ = upstream.Close()
+		return http.StatusInternalServerError
+	}
+	if err := client.SetDeadline(time.Time{}); err != nil {
+		_ = client.Close()
 		_ = upstream.Close()
 		return http.StatusInternalServerError
 	}
@@ -249,6 +258,14 @@ func (c *trackedConn) Close() error {
 	return err
 }
 
+func (c *trackedConn) CloseWrite() error {
+	closer, ok := c.Conn.(interface{ CloseWrite() error })
+	if !ok {
+		return errors.New("connection does not support half-close")
+	}
+	return closer.CloseWrite()
+}
+
 func targetAddress(authority, defaultPort string) (string, error) {
 	if authority == "" {
 		return "", errors.New("empty destination")
@@ -314,6 +331,20 @@ func removeHopHeaders(header http.Header) {
 	for _, key := range hopHeaders {
 		header.Del(key)
 	}
+}
+
+func isUpgradeRequest(header http.Header) bool {
+	if header.Get("Upgrade") != "" {
+		return true
+	}
+	for _, value := range header.Values("Connection") {
+		for token := range strings.SplitSeq(value, ",") {
+			if strings.EqualFold(strings.TrimSpace(token), "upgrade") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func tunnel(client, upstream net.Conn) {

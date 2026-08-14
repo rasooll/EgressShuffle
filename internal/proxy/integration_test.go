@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -220,6 +221,72 @@ func TestShutdownClosesLongLivedConnectTunnel(t *testing.T) {
 		t.Fatal("client connection remained open after forced shutdown")
 	}
 	_ = client.Close()
+}
+
+func TestConnectPreservesHalfClose(t *testing.T) {
+	targetListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer targetListener.Close()
+	targetDone := make(chan error, 1)
+	go func() {
+		conn, acceptErr := targetListener.Accept()
+		if acceptErr != nil {
+			targetDone <- acceptErr
+			return
+		}
+		defer conn.Close()
+		payload, readErr := io.ReadAll(conn)
+		if readErr != nil {
+			targetDone <- readErr
+			return
+		}
+		if string(payload) != "request" {
+			targetDone <- fmt.Errorf("target payload = %q", payload)
+			return
+		}
+		_, writeErr := conn.Write([]byte("response"))
+		targetDone <- writeErr
+	}()
+
+	socks := startFakeSOCKS(t, nil)
+	handler := testHandler(t, []string{socks.address()}, NewAuthenticator(false, "", ""), 0)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	clientConn, err := net.DialTimeout("tcp", server.Listener.Addr().String(), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := clientConn.(*net.TCPConn)
+	defer client.Close()
+	target := targetListener.Addr().String()
+	_, _ = fmt.Fprintf(client, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", target, target)
+	reader := bufio.NewReader(client)
+	status, err := reader.ReadString('\n')
+	if err != nil || !strings.Contains(status, " 200 ") {
+		t.Fatalf("CONNECT status = %q, %v", status, err)
+	}
+	for {
+		line, readErr := reader.ReadString('\n')
+		if readErr != nil {
+			t.Fatalf("read CONNECT headers: %v", readErr)
+		}
+		if line == "\r\n" {
+			break
+		}
+	}
+	_, _ = client.Write([]byte("request"))
+	if err := client.CloseWrite(); err != nil {
+		t.Fatal(err)
+	}
+	response, err := io.ReadAll(reader)
+	if err != nil || string(response) != "response" {
+		t.Fatalf("half-close response = %q, %v", response, err)
+	}
+	if err := <-targetDone; err != nil {
+		t.Fatalf("target failed: %v", err)
+	}
 }
 
 func testHandler(t *testing.T, addresses []string, auth Authenticator, retries int) *Handler {
